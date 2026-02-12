@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scramjet Proxy Browser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .browser-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .toolbar {
+            background-color: #1e293b;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #334155;
+            z-index: 50;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            padding: 6px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover {
+            background-color: #334155;
+        }
+
+        .nav-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke: #94a3b8;
+        }
+
+        .address-bar-container {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        .address-bar {
+            width: 100%;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 20px;
+            padding: 6px 16px;
+            color: #f8fafc;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-size: 14px;
+        }
+
+        .address-bar:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+
+        .viewport-container {
+            flex-grow: 1;
+            position: relative;
+            background: #fff;
+        }
+
+        #browser-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+
+        .splash-screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #0f172a;
+            z-index: 10;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .splash-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #334155;
+            border-bottom-color: #38bdf8;
+            border-radius: 50%;
+            animation: rotation 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-pill {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(4px);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="browser-container">
+        <!-- Browser Toolbar -->
+        <header class="toolbar">
+            <div class="nav-buttons">
+                <div class="nav-btn" id="back-btn" title="Back">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </div>
+                <div class="nav-btn" id="reload-btn" title="Reload">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </div>
+            </div>
+
+            <div class="address-bar-container">
+                <input type="text" id="url-input" class="address-bar" placeholder="Enter URL to proxy through Node.js..." autocomplete="off">
+            </div>
+
+            <div class="nav-buttons">
+                <div class="nav-btn" id="home-btn" title="Home">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                </div>
+            </div>
+        </header>
+
+        <!-- Viewport -->
+        <main class="viewport-container">
+            <div id="splash" class="splash-screen">
+                <div id="loader-content" class="flex flex-col items-center">
+                    <div class="loader"></div>
+                    <h1 class="text-2xl font-bold mb-2">Node.js Proxy Active</h1>
+                    <p class="text-slate-400">Waiting for local server on port 8080</p>
+                </div>
+                
+                <div class="mt-8 bg-slate-800 p-6 rounded-lg border border-slate-700 mx-4 max-w-md">
+                    <p class="text-sm text-slate-300 mb-4 text-center">
+                        This browser is now configured to route all traffic through your <b>server.js</b> file.
+                    </p>
+                    <div class="space-y-2">
+                        <button onclick="navigate('https://www.wikipedia.org')" class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded text-sm font-medium transition">Test Wikipedia via Proxy</button>
+                        <button onclick="navigate('https://example.com')" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded text-sm font-medium transition">Test Example.com via Proxy</button>
+                    </div>
+                </div>
+            </div>
+            <iframe id="browser-frame" src="about:blank"></iframe>
+        </main>
+    </div>
+
+    <div class="status-pill">
+        <div class="status-dot"></div>
+        <span id="status-text">Proxy Ready: localhost:8080</span>
+    </div>
+
+    <script>
+        const frame = document.getElementById('browser-frame');
+        const urlInput = document.getElementById('url-input');
+        const splash = document.getElementById('splash');
+        const statusText = document.getElementById('status-text');
+        
+        // Define the local server address
+        const PROXY_SERVER = "http://localhost:8080";
+
+        function formatUrl(input) {
+            let target = input.trim();
+            if (!target.startsWith('http://') && !target.startsWith('https://')) {
+                if (target.includes('.') && !target.includes(' ')) {
+                    target = 'https://' + target;
+                } else {
+                    target = 'https://www.bing.com/search?q=' + encodeURIComponent(target);
+                }
+            }
+            return target;
+        }
+
+        function navigate(input) {
+            if (!input) return;
+            
+            const targetUrl = formatUrl(input);
+            urlInput.value = targetUrl;
+            
+            // Construct the proxy URL based on your server.js logic (?url=...)
+            const proxiedUrl = `${PROXY_SERVER}/?url=${encodeURIComponent(targetUrl)}`;
+            
+            statusText.innerText = "Proxying: " + new URL(targetUrl).hostname;
+            splash.classList.remove('hidden');
+
+            // Load the proxied URL into the iframe
+            frame.src = proxiedUrl;
+
+            // Hide splash once the frame starts loading
+            frame.onload = () => {
+                splash.classList.add('hidden');
+            };
+
+            // Fallback to hide splash if onload doesn't fire (common with some proxy errors)
+            setTimeout(() => {
+                splash.classList.add('hidden');
+            }, 2000);
+        }
+
+        urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') navigate(urlInput.value);
+        });
+
+        document.getElementById('back-btn').onclick = () => {
+            try { frame.contentWindow.history.back(); } catch(e) {}
+        };
+
+        document.getElementById('reload-btn').onclick = () => {
+            const cur = frame.src;
+            frame.src = 'about:blank';
+            setTimeout(() => frame.src = cur, 100);
+        };
+
+        document.getElementById('home-btn').onclick = () => {
+            frame.src = 'about:blank';
+            urlInput.value = '';
+            splash.classList.remove('hidden');
+            statusText.innerText = "Proxy Ready: localhost:8080";
+        };
+    </script>
+</body>
+</html>
