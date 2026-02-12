@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scramjet Proxy Browser</title>
+    <title>Vproxy - Web Proxy Browser</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body, html {
@@ -139,13 +139,18 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            transition: all 0.3s ease;
         }
 
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: #10b981;
+            background-color: #ef4444; /* Default red */
             border-radius: 50%;
+        }
+
+        .status-online .status-dot {
+            background-color: #10b981; /* Green when online */
         }
     </style>
 </head>
@@ -164,7 +169,7 @@
             </div>
 
             <div class="address-bar-container">
-                <input type="text" id="url-input" class="address-bar" placeholder="Enter URL to proxy through Node.js..." autocomplete="off">
+                <input type="text" id="url-input" class="address-bar" placeholder="Enter URL to tunnel through Vproxy..." autocomplete="off">
             </div>
 
             <div class="nav-buttons">
@@ -179,17 +184,22 @@
             <div id="splash" class="splash-screen">
                 <div id="loader-content" class="flex flex-col items-center">
                     <div class="loader"></div>
-                    <h1 class="text-2xl font-bold mb-2">Node.js Proxy Active</h1>
-                    <p class="text-slate-400">Waiting for local server on port 8080</p>
+                    <h1 class="text-2xl font-bold mb-2">Vproxy Node Active</h1>
+                    <p id="splash-msg" class="text-slate-400">Verifying connection to port 8080...</p>
                 </div>
                 
                 <div class="mt-8 bg-slate-800 p-6 rounded-lg border border-slate-700 mx-4 max-w-md">
+                    <div id="connection-warning" class="text-amber-400 text-sm mb-4 flex items-start gap-2 hidden">
+                        <svg class="w-8 h-8 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        <span><b>Server Unreachable:</b> Make sure you have started <code>node server.js</code> in your terminal and "localhost:8080" isn't blocked.</span>
+                    </div>
+
                     <p class="text-sm text-slate-300 mb-4 text-center">
-                        This browser is now configured to route all traffic through your <b>server.js</b> file.
+                        Route your traffic through the Vproxy backend to bypass browser frame restrictions.
                     </p>
                     <div class="space-y-2">
-                        <button onclick="navigate('https://www.wikipedia.org')" class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded text-sm font-medium transition">Test Wikipedia via Proxy</button>
-                        <button onclick="navigate('https://example.com')" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded text-sm font-medium transition">Test Example.com via Proxy</button>
+                        <button onclick="navigate('https://www.wikipedia.org')" class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded text-sm font-medium transition">Test Wikipedia</button>
+                        <button onclick="navigate('https://example.com')" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded text-sm font-medium transition">Test Example.com</button>
                     </div>
                 </div>
             </div>
@@ -197,9 +207,9 @@
         </main>
     </div>
 
-    <div class="status-pill">
+    <div id="status-pill" class="status-pill">
         <div class="status-dot"></div>
-        <span id="status-text">Proxy Ready: localhost:8080</span>
+        <span id="status-text">Vproxy Offline</span>
     </div>
 
     <script>
@@ -207,9 +217,32 @@
         const urlInput = document.getElementById('url-input');
         const splash = document.getElementById('splash');
         const statusText = document.getElementById('status-text');
+        const statusPill = document.getElementById('status-pill');
+        const warning = document.getElementById('connection-warning');
         
-        // Define the local server address
         const PROXY_SERVER = "http://localhost:8080";
+
+        // Check if server is online
+        async function checkServer() {
+            try {
+                const res = await fetch(`${PROXY_SERVER}/ping`, { mode: 'cors' });
+                if (res.ok) {
+                    statusText.innerText = "Vproxy Online: 8080";
+                    statusPill.classList.add('status-online');
+                    warning.classList.add('hidden');
+                    return true;
+                }
+            } catch (e) {
+                statusText.innerText = "Vproxy Offline (Refused)";
+                statusPill.classList.remove('status-online');
+                warning.classList.remove('hidden');
+                return false;
+            }
+        }
+
+        // Run check on load and every 5 seconds
+        checkServer();
+        setInterval(checkServer, 5000);
 
         function formatUrl(input) {
             let target = input.trim();
@@ -223,30 +256,31 @@
             return target;
         }
 
-        function navigate(input) {
+        async function navigate(input) {
             if (!input) return;
             
+            const isOnline = await checkServer();
+            if (!isOnline) {
+                splash.classList.remove('hidden');
+                return;
+            }
+
             const targetUrl = formatUrl(input);
             urlInput.value = targetUrl;
-            
-            // Construct the proxy URL based on your server.js logic (?url=...)
             const proxiedUrl = `${PROXY_SERVER}/?url=${encodeURIComponent(targetUrl)}`;
             
-            statusText.innerText = "Proxying: " + new URL(targetUrl).hostname;
+            statusText.innerText = "Tunneling: " + new URL(targetUrl).hostname;
             splash.classList.remove('hidden');
+            document.getElementById('splash-msg').innerText = "Establishing secure tunnel...";
 
-            // Load the proxied URL into the iframe
             frame.src = proxiedUrl;
-
-            // Hide splash once the frame starts loading
             frame.onload = () => {
                 splash.classList.add('hidden');
             };
 
-            // Fallback to hide splash if onload doesn't fire (common with some proxy errors)
             setTimeout(() => {
                 splash.classList.add('hidden');
-            }, 2000);
+            }, 3000);
         }
 
         urlInput.addEventListener('keydown', (e) => {
@@ -267,7 +301,8 @@
             frame.src = 'about:blank';
             urlInput.value = '';
             splash.classList.remove('hidden');
-            statusText.innerText = "Proxy Ready: localhost:8080";
+            document.getElementById('splash-msg').innerText = "Waiting for local server on port 8080";
+            checkServer();
         };
     </script>
 </body>
