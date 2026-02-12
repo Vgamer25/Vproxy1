@@ -22,35 +22,71 @@ const server = http.createServer((req, res) => {
     // Basic CORS headers to allow your browser.html to talk to this server
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Parse the URL to find the target destination
-    // In a real proxy, the destination is often encoded in the query string
-    const query = url.parse(req.url, true).query;
-    const targetUrl = query.url;
-
-    if (!targetUrl) {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('Proxy Server is Active. Use ?url=https://example.com to browse.');
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
         return;
     }
 
-    console.log(`Proxying request to: ${targetUrl}`);
+    const parsedUrl = url.parse(req.url, true);
+    
+    // Health check endpoint to verify the server is actually reachable
+    if (parsedUrl.pathname === '/ping') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'online', message: 'Proxy server is reachable!' }));
+        return;
+    }
+
+    // Parse the URL to find the target destination
+    const targetUrl = parsedUrl.query.url;
+
+    if (!targetUrl) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+            <body style="font-family:sans-serif; background:#0f172a; color:white; padding:20px;">
+                <h1>Proxy Server Active</h1>
+                <p>The server is running correctly on port ${PORT}.</p>
+                <p>To test a site directly, use: <a href="http://localhost:${PORT}/?url=https://www.wikipedia.org" style="color:#38bdf8;">this link</a></p>
+            </body>
+        `);
+        return;
+    }
+
+    console.log(`[${new Date().toLocaleTimeString()}] Proxying to: ${targetUrl}`);
 
     // Forward the request to the target website
     proxy.web(req, res, { target: targetUrl }, (e) => {
         console.error('Proxy Error:', e.message);
-        res.writeHead(500);
-        res.end('Could not reach the destination.');
+        
+        // Provide a more helpful error response if the target site fails
+        res.writeHead(502, { 'Content-Type': 'text/plain' });
+        res.end(`Proxy Error: Could not connect to ${targetUrl}. Detailed error: ${e.message}`);
     });
 });
 
-// Error handling for the proxy
+// Error handling for the proxy logic
 proxy.on('error', (err, req, res) => {
-    res.writeHead(500, { 'Content-Type': 'text/plain' });
-    res.end('Something went wrong with the proxy connection.');
+    if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+    }
+    res.end('The proxy encountered an internal error.');
 });
 
-server.listen(PORT, () => {
-    console.log(`Scramjet-style server running at http://localhost:${PORT}`);
-    console.log(`To use: http://localhost:${PORT}/?url=https://www.wikipedia.org`);
+server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please close other programs using this port.`);
+    } else {
+        console.error('Server Error:', e);
+    }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+    console.log('========================================');
+    console.log(`Scramjet-style server: ONLINE`);
+    console.log(`Address: http://localhost:${PORT}`);
+    console.log(`Status: Listening for browser requests...`);
+    console.log('========================================');
 });
