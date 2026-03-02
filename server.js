@@ -16,7 +16,7 @@ const proxy = httpProxy.createProxyServer({
 });
 
 // Port to run the server on
-const PORT = 8080;
+const PORT = 6718;
 
 const server = http.createServer((req, res) => {
     // Basic CORS headers to allow your browser.html to talk to this server
