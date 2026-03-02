@@ -185,7 +185,7 @@
                 <div id="loader-content" class="flex flex-col items-center">
                     <div class="loader"></div>
                     <h1 class="text-2xl font-bold mb-2">Vproxy Node Active</h1>
-                    <p id="splash-msg" class="text-slate-400">Verifying connection to port 8080...</p>
+                    <p id="splash-msg" class="text-slate-400">Verifying connection to port ...</p>
                 </div>
                 
                 <div class="mt-8 bg-slate-800 p-6 rounded-lg border border-slate-700 mx-4 max-w-md">
@@ -220,7 +220,7 @@
         const statusPill = document.getElementById('status-pill');
         const warning = document.getElementById('connection-warning');
         
-        const PROXY_SERVER = "http://localhost:8080";
+        const PROXY_SERVER = "http://localhost:6718";
 
         // Check if server is online
         async function checkServer() {
